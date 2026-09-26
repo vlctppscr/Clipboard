@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Typing - Two-Way Screen</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght=400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #f7f9fa;
+            --card-bg: #ffffff;
+            --text-main: #1c1b1f;
+            --text-muted: #625b71;
+            --primary-green: #1a8738;
+            --info-bg: #f0f7f1;
+            --border-color: #e1e3e5;
+            --nav-bg: #ffffff;
+            --nav-active-bg: #e8f5e9;
+            --danger-color: #ba1a1a;
+        }
+
+        /* Night Mode Variables */
+        [data-theme="dark"] {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-main: #e3e2e6;
+            --text-muted: #938f99;
+            --primary-green: #4caf50;
+            --info-bg: #1c261f;
+            --border-color: #333333;
+            --nav-bg: #1e1e1e;
+            --nav-active-bg: #2d3d30;
+            --danger-color: #ffb4ab;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Noto Sans Devanagari', sans-serif; 
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            /* बॉटम पैडिंग को कम किया क्योंकि अब नीचे बैनर नहीं है */
+            padding: 20px 16px 20px 16px; 
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        /* Theme transition only on chrome elements, NEVER on the textarea,
+           so typing/pasting shows up with zero rendering delay */
+        .content-box, .icon-btn, .copy-btn, .round-btn, .page-tab, .page-tabs, h2, .status {
+            transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+        }
+
+        /* Top Header Action Buttons */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .action-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .left-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .icon-btn {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .clear-btn {
+            color: var(--danger-color);
+        }
+
+        h2 { 
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+        
+        .sync-tag {
+            font-size: 16px;
+            color: var(--primary-green);
+            font-weight: 500;
+        }
+
+        .status { 
+            color: var(--primary-green); 
+            font-size: 14px; 
+            margin-bottom: 20px; 
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 500;
+        }
+        
+        .status::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: var(--primary-green);
+            border-radius: 50%;
+        }
+
+        /* Main Content Box Container */
+        .content-box {
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
+            /* flex: 1 और min-height को बढ़ाकर 450px किया ताकि बॉक्स नीचे तक बड़ा दिखे */
+            flex: 1;
+            min-height: 450px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border: 1px solid var(--border-color);
+            margin-bottom: 16px;
+            display: flex;
+            flex-direction: column; 
+            gap: 12px;
+            position: relative;
+        }
+
+        .content-box:focus-within {
+            border-color: var(--primary-green);
+            box-shadow: 0 0 0 1px var(--primary-green);
+        }
+
+        .content-main-row {
+            display: flex;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .content-icon {
+            color: var(--primary-green);
+            font-size: 20px;
+            margin-top: 2px;
+        }
+
+        .review-box { 
+            font-family: 'Noto Sans Devanagari', sans-serif;
+            font-size: 16px; 
+            color: var(--text-main);
+            white-space: pre-wrap; 
+            line-height: 1.6;
+            flex: 1;
+            outline: none;
+            border: none;
+            background: transparent;
+            resize: none;
+            width: 100%;
+        }
+
+        /* Bottom Action Bar for Copy Button Inside Text Box */
+        .content-bottom-bar {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding-top: 8px;
+            border-top: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        /* Page Tabs (1-5) - free floating individual circles, sit between the
+           status line and the text box (not attached to the box) */
+        .page-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .page-tab {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        .page-tab.active {
+            background: var(--primary-green);
+            border-color: var(--primary-green);
+            color: #ffffff;
+        }
+
+        .page-tab:active {
+            transform: scale(0.94);
+        }
+
+        /* Right side actions: undo, redo, copy */
+        .right-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .round-btn {
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .round-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        .round-btn:active:not(:disabled) {
+            transform: scale(0.94);
+        }
+
+        .copy-btn {
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            color: var(--primary-green);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+
+        .copy-btn:active {
+            transform: scale(0.98);
+        }
+    </style>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyASRJsCylYtN8pawm3jKg4nrtVVsusfrk",
+            authDomain: "my-realtime-clipboard.firebaseapp.com",
+            projectId: "my-realtime-clipboard",
+            storageBucket: "my-realtime-clipboard.appspot.com",
+            messagingSenderId: "838820540880",
+            appId: "1:838820540880:web:d7eaa3d5c96f3d9017c9d5"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        document.addEventListener('DOMContentLoaded', () => {
+             const reviewArea = document.getElementById('reviewArea');
+             const status = document.getElementById('status');
+             const themeToggle = document.getElementById('themeToggle');
+             const clearBtn = document.getElementById('clearBtn');
+             const masterDeleteBtn = document.getElementById('masterDeleteBtn');
+             const copyBtn = document.getElementById('copyBtn');
+             const undoBtn = document.getElementById('undoBtn');
+             const redoBtn = document.getElementById('redoBtn');
+             const pageTabs = document.querySelectorAll('.page-tab');
+
+             const NUM_PAGES = 5;
+             const MAX_HISTORY = 30; // enough to always keep at least last 3 steps, and more
+             let currentPage = parseInt(localStorage.getItem('activePage'), 10) || 1;
+             let isTyping = false;
+             let historyDebounce = null;
+             const remoteCache = {}; // page -> latest text received from Firebase (kept live for ALL pages)
+
+             // --- Theme / Night Mode Logic (defaults to dark on first open) ---
+             const currentTheme = localStorage.getItem('theme') || 'dark';
+             document.documentElement.setAttribute('data-theme', currentTheme);
+             updateThemeIcon(currentTheme);
+
+             themeToggle.addEventListener('click', () => {
+                 let theme = document.documentElement.getAttribute('data-theme');
+                 theme = (theme === 'dark') ? 'light' : 'dark';
+                 document.documentElement.setAttribute('data-theme', theme);
+                 localStorage.setItem('theme', theme);
+                 updateThemeIcon(theme);
+              });
+
+             function updateThemeIcon(theme) {
+                 if (theme === 'dark') {
+                     themeToggle.innerHTML = '<i class="fa-solid fa-sun"></i>';
+                 } else {
+                     themeToggle.innerHTML = '<i class="fa-solid fa-moon"></i>';
+                 }
+             }
+
+             // --- Per-page Undo/Redo History (persisted in localStorage) ---
+             function getHistoryState(page) {
+                 try {
+                     const raw = localStorage.getItem('history_page' + page);
+                     if (raw) {
+                         const parsed = JSON.parse(raw);
+                         if (Array.isArray(parsed.list) && typeof parsed.index === 'number') {
+                             return parsed;
+                         }
+                     }
+                 } catch (e) {}
+                 return { list: [""], index: 0 };
+             }
+
+             function saveHistoryState(page, state) {
+                 localStorage.setItem('history_page' + page, JSON.stringify(state));
+             }
+
+             // Adds a new snapshot to a page's history (used after real edits)
+             function pushHistory(page, text) {
+                 const state = getHistoryState(page);
+                 if (state.list[state.index] === text) return; // no real change
+                 // drop any redo-able future states
+                 state.list = state.list.slice(0, state.index + 1);
+                 state.list.push(text);
+                 if (state.list.length > MAX_HISTORY) {
+                     state.list.shift();
+                 }
+                 state.index = state.list.length - 1;
+                 saveHistoryState(page, state);
+                 if (page === currentPage) updateUndoRedoButtons();
+             }
+
+             function updateUndoRedoButtons() {
+                 const state = getHistoryState(currentPage);
+                 undoBtn.disabled = state.index <= 0;
+                 redoBtn.disabled = state.index >= state.list.length - 1;
+             }
+
+             function flushPendingHistory() {
+                 if (historyDebounce) {
+                     clearTimeout(historyDebounce);
+                     historyDebounce = null;
+                     pushHistory(currentPage, reviewArea.value);
+                 }
+             }
+
+             undoBtn.addEventListener('click', () => {
+                 flushPendingHistory();
+                 const state = getHistoryState(currentPage);
+                 if (state.index <= 0) return;
+                 state.index -= 1;
+                 saveHistoryState(currentPage, state);
+                 const text = state.list[state.index];
+                 reviewArea.value = text;
+                 writeToFirebase(currentPage, text, () => {
+                     status.textContent = "Undo done (Page " + currentPage + ")";
+                 });
+                 updateUndoRedoButtons();
+             });
+
+             redoBtn.addEventListener('click', () => {
+                 flushPendingHistory();
+                 const state = getHistoryState(currentPage);
+                 if (state.index >= state.list.length - 1) return;
+                 state.index += 1;
+                 saveHistoryState(currentPage, state);
+                 const text = state.list[state.index];
+                 reviewArea.value = text;
+                 writeToFirebase(currentPage, text, () => {
+                     status.textContent = "Redo done (Page " + currentPage + ")";
+                 });
+                 updateUndoRedoButtons();
+             });
+
+             // --- Page Switching (1-5) ---
+             function setActiveTabUI() {
+                 pageTabs.forEach(tab => {
+                     tab.classList.toggle('active', parseInt(tab.dataset.page, 10) === currentPage);
+                 });
+             }
+
+             function switchPage(page) {
+                 if (page === currentPage) return;
+                 flushPendingHistory();
+                 currentPage = page;
+                 localStorage.setItem('activePage', String(currentPage));
+                 setActiveTabUI();
+
+                 // Always prefer the latest live value received from Firebase for this
+                 // page (kept up to date in the background even while another page
+                 // is active), so switching shows the newest text with no refresh.
+                 const hasRemote = Object.prototype.hasOwnProperty.call(remoteCache, currentPage);
+                 const state = getHistoryState(currentPage);
+                 const text = hasRemote ? remoteCache[currentPage] : (state.list[state.index] || "");
+                 reviewArea.value = text;
+
+                 // Keep undo/redo history in sync with the live value
+                 if (hasRemote && state.list[state.index] !== text) {
+                     pushHistory(currentPage, text);
+                 } else {
+                     updateUndoRedoButtons();
+                 }
+                 status.textContent = "Page " + currentPage + ": Live Sync Active";
+             }
+
+             pageTabs.forEach(tab => {
+                 tab.addEventListener('click', () => {
+                     switchPage(parseInt(tab.dataset.page, 10));
+                 });
+             });
+
+             setActiveTabUI();
+             // Load initial text for the active page from local history immediately
+             (function initActivePage() {
+                 const state = getHistoryState(currentPage);
+                 reviewArea.value = state.list[state.index] || "";
+                 updateUndoRedoButtons();
+             })();
+
+             // --- Firebase Realtime Data Listeners (Read) - one per page ---
+             function writeToFirebase(page, text, onDone) {
+                 isTyping = true;
+                 set(ref(database, 'typingText/page' + page), {
+                     text: text
+                 }).then(() => {
+                     isTyping = false;
+                     if (onDone) onDone();
+                 }).catch((error) => {
+                     console.error("Update error: ", error);
+                     isTyping = false;
+                 });
+             }
+
+             for (let p = 1; p <= NUM_PAGES; p++) {
+                 const pageRef = ref(database, 'typingText/page' + p);
+                 onValue(pageRef, (snapshot) => {
+                     const data = snapshot.val();
+                     const remoteText = (data && data.text !== undefined) ? data.text : "";
+                     remoteCache[p] = remoteText; // keep every page's latest value live in background
+
+                     if (p === currentPage && !isTyping) {
+                         if (reviewArea.value !== remoteText) {
+                             reviewArea.value = remoteText;
+                             status.textContent = "Page " + p + ": Live Sync Active";
+                             const state = getHistoryState(p);
+                             if (state.list[state.index] !== remoteText) {
+                                 pushHistory(p, remoteText);
+                             }
+                         }
+                     }
+                 }, (error) => {
+                     status.textContent = "Error loading data.";
+                     console.error(error);
+                 });
+             }
+
+             // --- Live Updating to Firebase + Debounced History (Write) ---
+             reviewArea.addEventListener('input', (e) => {
+                 const updatedText = e.target.value;
+                 writeToFirebase(currentPage, updatedText);
+
+                 clearTimeout(historyDebounce);
+                 historyDebounce = setTimeout(() => {
+                     historyDebounce = null;
+                     pushHistory(currentPage, updatedText);
+                 }, 800);
+             });
+
+             // Flush pending history before the page unloads so undo survives a reload
+             window.addEventListener('beforeunload', flushPendingHistory);
+             window.addEventListener('visibilitychange', () => {
+                 if (document.visibilityState === 'hidden') flushPendingHistory();
+             });
+
+             // --- Clear Text Logic (current page only) ---
+             clearBtn.addEventListener('click', () => {
+                 flushPendingHistory();
+                 reviewArea.value = "";
+                 writeToFirebase(currentPage, "", () => {
+                     status.textContent = "Page " + currentPage + " cleared successfully!";
+                 });
+                 pushHistory(currentPage, "");
+             });
+
+             // --- Master Delete: clear ALL pages (1-5) in one click ---
+             masterDeleteBtn.addEventListener('click', () => {
+                 flushPendingHistory();
+                 for (let p = 1; p <= NUM_PAGES; p++) {
+                     remoteCache[p] = "";
+                     writeToFirebase(p, "");
+                     pushHistory(p, ""); // kept in each page's own history, so undo can still restore it
+                 }
+                 reviewArea.value = "";
+                 updateUndoRedoButtons();
+                 status.textContent = "All pages cleared!";
+             });
+
+             // --- Copy All Text Logic ---
+             copyBtn.addEventListener('click', () => {
+                 if (!reviewArea.value) {
+                     status.textContent = "Nothing to copy!";
+                     return;
+                 }
+                 
+                 navigator.clipboard.writeText(reviewArea.value).then(() => {
+                     const originalInner = copyBtn.innerHTML;
+                     copyBtn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+                     status.textContent = "Text copied to clipboard!";
+                     
+                     setTimeout(() => {
+                         copyBtn.innerHTML = originalInner;
+                         status.textContent = "Page " + currentPage + ": Live Sync Active";
+                     }, 2000);
+                 }).catch((err) => {
+                     console.error("Could not copy text: ", err);
+                     status.textContent = "Failed to copy text.";
+                 });
+             });
+        });
+    </script>
+</head>
+<body>
+
+    <div class="top-bar">
+        <div class="left-group">
+            <div class="icon-btn" style="color: var(--primary-green); font-size: 18px;">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <button id="masterDeleteBtn" class="icon-btn clear-btn" title="Delete All Pages">
+                <i class="fa-solid fa-broom"></i>
+            </button>
+        </div>
+        <div class="action-group">
+            <button id="clearBtn" class="icon-btn clear-btn" title="Clear Content">
+                <i class="fa-solid fa-trash-can"></i>
+            </button>
+            <button id="themeToggle" class="icon-btn" title="Toggle Dark/Light Mode">
+                <i class="fa-solid fa-moon"></i>
+            </button>
+        </div>
+    </div>
+
+    <h2>Live Chat Screen <span class="sync-tag">(Two-Way Sync)</span></h2>
+    <div id="status" class="status">Connecting to server...</div>
+
+    <div class="page-tabs" id="pageTabs">
+        <button class="page-tab" data-page="1" title="Page 1">1</button>
+        <button class="page-tab" data-page="2" title="Page 2">2</button>
+        <button class="page-tab" data-page="3" title="Page 3">3</button>
+        <button class="page-tab" data-page="4" title="Page 4">4</button>
+        <button class="page-tab" data-page="5" title="Page 5">5</button>
+    </div>
+
+    <div class="content-box">
+        <div class="content-main-row">
+            <div class="content-icon">
+                <i class="fa-regular fa-pen-to-square"></i>
+            </div>
+            <textarea id="reviewArea" class="review-box" placeholder="Type anything here, it will update live on both screens..."></textarea>
+        </div>
+        
+        <div class="content-bottom-bar">
+            <div class="right-actions">
+                <button id="undoBtn" class="round-btn" title="Undo">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </button>
+                <button id="redoBtn" class="round-btn" title="Redo">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+                <button id="copyBtn" class="copy-btn" title="Copy All Text">
+                    <i class="fa-regular fa-copy"></i> Copy All
+                </button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
